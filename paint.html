@@ -1,0 +1,128 @@
+<html>
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        $(function(){
+			window.webkitNotifications.requestPermission();
+			var  user = prompt('你的名字是？','匿名');
+			var a=1;
+			var canvas=$('#pad');
+			var other_can=canvas.get(0).getContext("2d");
+            var iosocket = io.connect();
+            iosocket.on('connect', function () {
+				var user_come=user+'来了~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+				iosocket.json.send({type:'chat',name:user_come,text:')'});
+                iosocket.on('message', function(e) {
+					if (e.type == 'paint')
+					{
+						if (e.x == -1){a=1;}
+						else if (e.x >= 0)
+						{			
+							if (a==1)
+							{
+								a=0;
+								other_can.beginPath();
+								other_can.moveTo(e.x,e.y);
+							}
+							other_can.strokeStyle = e.color;
+							other_can.lineWidth= e.width;
+							other_can.lineCap ='round';
+							other_can.lineJoin = 'round';
+							other_can.lineTo(e.x,e.y);
+							other_can.stroke();
+						}
+					}
+					else if(e.type=='chat')
+					{
+						$('#text').append('<li>'+e.name+':'+e.text+'</li>');
+						window.webkitNotifications.requestPermission();
+						
+						if(window.webkitNotifications){
+						if (window.webkitNotifications.checkPermission()>0) {
+							window.webkitNotifications.requestPermission();
+							console.log('啦');
+						}
+						else{
+							webkitNotifications.createNotification(
+								'http://images.cnblogs.com/cnblogs_com/flyingzl/268702/r_1.jpg',
+								e.name,
+								e.text
+							).show();
+						}
+						}
+
+					}
+				});
+                iosocket.on('disconnect', function() {
+                });
+            });
+			$('.allpad').mousedown(function(e){
+				window.webkitNotifications.requestPermission();
+				$('#tool').hide();
+				var canvas=$('#pad');
+				var con=canvas.get(0).getContext("2d");
+				con.beginPath();
+				con.moveTo(e.pageX,e.pageY);
+				console.log('moveto');
+				con.strokeStyle = $('#color').val();
+				con.lineWidth=$('#width').val();
+				con.lineCap ='round';
+				con.lineJoin = 'round';
+				iosocket.json.send({type:'paint',x:e.pageX,y:e.pageY,color:$('#color').val(),width:$('#width').val()});
+				$('.allpad').bind('mousemove',function(e){ 
+					iosocket.json.send({type:'paint',x:e.pageX,y:e.pageY,color:$('#color').val(),width:$('#width').val()});
+					con.lineTo(e.pageX,e.pageY);
+					con.stroke();
+				});
+			});
+			$('.allpad').mouseup(function(e){
+				$('.allpad').unbind('mousemove');
+				iosocket.json.send({type:'paint',x:-1,y:-1});
+			});
+			$('.allpad').dblclick(function(e){
+				$('#tool').css({'left':e.pageX-45+'px','top':e.pageY-45+'px',});
+				$('#tool').slideToggle();
+			});
+			$('#msg').keypress(function(e){
+				if (e.which == 13)
+				{
+					e.preventDefault();
+					iosocket.json.send({type:'chat',name:user,text:$('#msg').val()});
+					$('#text').append('<li>'+'我:'+$('#msg').val()+'</li>');
+					$('#msg').val('');
+				}
+			});
+			$('body').mousemove(function(e){
+				$('#cursor').css({
+					'background':$('#color').val(),
+					'left':e.pageX-0.5*$('#width').val()+'px',
+					'top':e.pageY-0.5*$('#width').val()+'px',
+					'height':$('#width').val(),
+					'border-radius':0.5*$('#width').val(),
+					'width':$('#width').val(),});
+			});
+			$('p').click(function(){
+				$('#text').slideToggle();
+			});
+        });	
+    </script>
+</head>
+<style>
+*{padding:0;margin:0;}
+html,body{height:100%;overflow:hidden;}
+#cursor{position:absolute;left:0px;top:0px;height:4px;width:4px;border-radius:2px;background:white;}
+#tool{position:absolute;left:0px;top:0px;display:none;}
+.allpad{cursor:none;}
+</style>
+<body title='双击调色' >
+<div id='cursor' class='allpad'></div>
+<div class='tool' id='tool'>
+<input type='color' id='color'  value='#80FFFF'>
+<input type='range' id='width'  min='0.05' value='8'>
+<p>点击隐藏对话框</p>
+<div id='text'><input id='msg'></div>
+</div>
+<canvas id="pad" class='allpad' width="1800" height="1000" ></canvas>
+</body>
+</html>
